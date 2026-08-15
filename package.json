@@ -1,0 +1,29 @@
+{
+  "name": "dsh-frontend-tools",
+  "private": true,
+  "description": "DSH plugin + client SDK: bridge web/Electron/Tauri apps to DeepSeek Harness agents in real time",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf packages/*/lib packages/*/*.tsbuildinfo"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "packageManager": "pnpm@10.28.0",
+  "pnpm": {
+    "peerDependencyRules": {
+      "ignoreMissing": [
+        "@deepseek-ai/dsh-*"
+      ]
+    }
+  }
+}

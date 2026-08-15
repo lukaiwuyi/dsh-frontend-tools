@@ -1,0 +1,59 @@
+{
+  "name": "dsh-frontend-tools-client",
+  "version": "0.1.0",
+  "description": "Frontend tools client SDK: register an application's tools with the DeepSeek Harness frontend-tools bridge over WebSocket (browser, Electron, Tauri, Node)",
+  "license": "MIT",
+  "author": "lukaiwuyi",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lukaiwuyi/dsh-frontend-tools.git",
+    "directory": "packages/client"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "frontend",
+    "websocket",
+    "agent-tools",
+    "bridge",
+    "electron",
+    "tauri"
+  ],
+  "type": "module",
+  "main": "./lib/index.mjs",
+  "types": "./lib/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.mts",
+      "default": "./lib/index.mjs"
+    },
+    "./invariant": {
+      "types": "./lib/invariant.d.mts",
+      "default": "./lib/invariant.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsdown src/index.ts src/invariant.ts --format esm --dts --out-dir lib --clean"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.0",
+    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": { "optional": true },
+    "@deepseek-ai/dsh-invariants": { "optional": true }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
+    "@deepseek-ai/dsh-invariants": "^0.1.0-rc.6",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}
