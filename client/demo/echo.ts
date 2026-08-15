@@ -1,6 +1,6 @@
 /**
  * Minimal demo: connect to a running frontend-tools bridge and register one
- * `echo` tool the model can call. Run with (from packages/frontend-tools/client):
+ * `echo` tool the model can call. Run with (from client/):
  *
  *   node --import tsx/esm demo/echo.ts
  *

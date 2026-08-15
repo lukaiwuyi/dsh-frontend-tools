@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+[![npm](https://img.shields.io/npm/v/dsh-frontend-tools-client)](https://www.npmjs.com/package/dsh-frontend-tools-client)
+
 前端工具桥的应用侧：把一个应用（浏览器渲染进程、Web 应用或 Node 进程）连接到 [`dsh-frontend-tools-bridge`](../bridge/README.md) 的 WebSocket 服务，并把应用私有的工具暴露给模型。应用保留带完整权限的真实实现——本 SDK 只单向携带注册、反向携带转发调用。
 
 ## 功能

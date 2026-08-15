@@ -7,7 +7,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lukaiwuyi/dsh-frontend-tools.git",
-    "directory": "packages/bridge"
+    "directory": "bridge"
   },
   "keywords": [
     "dsh",
@@ -31,13 +31,19 @@
       "types": "./lib/invariant.d.mts",
       "default": "./lib/invariant.mjs"
     },
+    "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
   },
   "files": [
     "lib",
-    "cordis.yml",
+    "cordis.patch.yml",
     "src"
   ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
   "scripts": {
     "build": "tsdown src/index.ts src/invariant.ts --format esm --dts --out-dir lib --clean"
   },

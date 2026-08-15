@@ -1,0 +1,17 @@
+# Bundle patch for `dsh-frontend-tools-bridge`.
+#
+# This file is what `dsh plugin --profile web add dsh-frontend-tools-bridge`
+# composes into the profile: one inserted row mounting the bridge plugin.
+# Every config field (port, callTimeoutMs, maxTools, stateDir, staticClients)
+# has an in-code default, so no config is passed here — override any of them
+# in your own cordis.patch.yml by targeting the row id below, e.g.:
+#
+#   - id: frontend-tools-bridge
+#     config:
+#       port: 31870
+#
+# A patch replaces the targeted row's whole config; omitted keys fall back to
+# the plugin's in-code defaults.
+- insert:
+    - id: frontend-tools-bridge
+      name: dsh-frontend-tools-bridge

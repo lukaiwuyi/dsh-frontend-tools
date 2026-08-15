@@ -7,7 +7,8 @@
     "build": "pnpm -r run build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "clean": "rm -rf packages/*/lib packages/*/*.tsbuildinfo"
+    "verify-translation-pairing": "node --experimental-strip-types scripts/verify-translation-pairing.ts",
+    "clean": "rm -rf bridge/lib client/lib bridge/*.tsbuildinfo client/*.tsbuildinfo"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

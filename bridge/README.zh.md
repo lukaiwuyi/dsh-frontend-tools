@@ -2,6 +2,8 @@
 
 [English](README.md) | 中文
 
+[![npm](https://img.shields.io/npm/v/dsh-frontend-tools-bridge)](https://www.npmjs.com/package/dsh-frontend-tools-bridge)
+
 前端工具桥的 dsh 侧：一个仅监听回环地址的 WebSocket 服务，让任意数量的已连接应用把自己私有的工具镜像注册到 `ctx.tools` 上，每个应用占据独立的命名空间。工具的真实实现只存在于应用（浏览器渲染进程、Web 应用、Node 进程）——本桥接插件不含任何业务知识；它把模型调用转发给持有的应用并返回其结果。应用侧的对应件是 [`dsh-frontend-tools-client`](../client/README.md)。
 
 ## 功能

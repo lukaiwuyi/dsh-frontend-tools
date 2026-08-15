@@ -21,9 +21,9 @@
     "types": ["node"],
     "noEmit": true,
     "paths": {
-      "dsh-frontend-tools-client": ["./packages/client/src/index.ts"],
-      "dsh-frontend-tools-client/invariant": ["./packages/client/src/invariant.ts"]
+      "dsh-frontend-tools-client": ["./client/src/index.ts"],
+      "dsh-frontend-tools-client/invariant": ["./client/src/invariant.ts"]
     }
   },
-  "include": ["packages/*/src/**/*.ts"]
+  "include": ["bridge/src/**/*.ts", "client/src/**/*.ts"]
 }

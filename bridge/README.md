@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+[![npm](https://img.shields.io/npm/v/dsh-frontend-tools-bridge)](https://www.npmjs.com/package/dsh-frontend-tools-bridge)
+
 The dsh half of the frontend tools bridge: a loopback-only WebSocket server that lets any number of connected applications mirror their own tools onto `ctx.tools`, each under its own namespace. Real implementations stay in the applications (browser renderers, web apps, Node processes) — the bridge carries no business knowledge; it forwards model calls to the owning application and returns its results. The application-side counterpart is [`dsh-frontend-tools-client`](../client/README.md).
 
 ## What it does

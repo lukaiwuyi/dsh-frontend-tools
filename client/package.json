@@ -7,7 +7,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lukaiwuyi/dsh-frontend-tools.git",
-    "directory": "packages/client"
+    "directory": "client"
   },
   "keywords": [
     "dsh",

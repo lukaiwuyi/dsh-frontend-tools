@@ -2,6 +2,8 @@
 
 English | [中文](README.zh.md)
 
+[![npm](https://img.shields.io/npm/v/dsh-frontend-tools-client)](https://www.npmjs.com/package/dsh-frontend-tools-client)
+
 The application half of the frontend tools bridge: connect an application (browser renderer, web app, or Node process) to the [`dsh-frontend-tools-bridge`](../bridge/README.md) WebSocket server and expose the application's own tools to the model. The application keeps the real implementations with their full permissions — this SDK only carries registrations one way and forwarded calls the other.
 
 ## What it does
