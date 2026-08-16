@@ -6,6 +6,8 @@ English | [中文](README.zh.md)
 
 > Bridge web/Electron/Tauri/Node applications to [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) agents in real time — expose your app's frontend tools to AI agents over a loopback WebSocket.
 
+![Demo](demo.gif)
+
 ## Why?
 
 Most agent tooling is built around the file system. Yet countless applications and systems are built on frontend technologies — places agents cannot reach by reading and writing files.

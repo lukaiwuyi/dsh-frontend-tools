@@ -6,6 +6,8 @@
 
 > 通过回环 WebSocket 将 Web/Electron/Tauri/Node 应用实时桥接到 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/deepseek-harness) Agent —— 将你的前端工具暴露给 AI Agent。
 
+![Demo](demo.gif)
+
 ## 设计初衷
 
 大多数 Agent 工具围绕文件系统设计，而现实中数以万计的应用/系统以前端技术构建 —— Agent 无法通过读写文件触达它们。
