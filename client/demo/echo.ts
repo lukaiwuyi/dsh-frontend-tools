@@ -27,6 +27,9 @@ await client.connect()
 const names = await client.registerTools([{
   name: 'echo',
   description: 'Echo the provided message back. Use it to verify the frontend-tools bridge end to end.',
+  // readOnly: true — echo mutates nothing, so calls run without approval.
+  // Omit this flag (a WRITE tool) and every call waits for DSH human approval.
+  readOnly: true,
   parametersSchema: {
     type: 'object',
     properties: {

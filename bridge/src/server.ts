@@ -15,6 +15,7 @@ import { WebSocketServer, type RawData, type WebSocket } from 'ws'
 import { encodeServerMessage, parseClientMessage, FrontendToolsError, PROTOCOL_VERSION, SERVER_ID } from 'dsh-frontend-tools-client'
 import type { ErrorMessage } from 'dsh-frontend-tools-client'
 import { MirrorRegistry, publicToolName } from './registry.ts'
+import type { ToolCategory } from './registry.ts'
 import { CallDispatcher } from './dispatch.ts'
 import type { ClientRoster } from './key-store.ts'
 
@@ -188,6 +189,21 @@ export class BridgeServer {
     let total = 0
     for (const session of this.sessions.values()) total += session.registry.size
     return total
+  }
+
+  /**
+   * Read/write category of one mirrored tool across every live session
+   * (the write-approval gate's dynamic lookup source). Namespaces are
+   * disjoint, so at most one session can own a public name.
+   * @param publicName - the model-facing `ctx.tools` name.
+   * @returns the owning session's category, or `undefined` when no live session mirrors the name.
+   */
+  categoryOf(publicName: string): ToolCategory | undefined {
+    for (const session of this.sessions.values()) {
+      const category = session.registry.categoryOf(publicName)
+      if (category !== undefined) return category
+    }
+    return undefined
   }
 
   /** Complete the handshake or fail the socket. */

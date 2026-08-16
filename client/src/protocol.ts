@@ -27,9 +27,13 @@
  * (which the application generated itself and had registered with the bridge's
  * admin tools), and `welcome` echoes back the bound namespace. v4 renames the
  * `hello` credential field from `token` to `key`, aligning the wire with the
- * user-facing DSH KEY vocabulary everywhere else.
+ * user-facing DSH KEY vocabulary everywhere else. v5 adds the optional
+ * `readOnly` flag on every registered tool spec: tools explicitly declared
+ * `readOnly: true` run without interruption, while every other tool (the
+ * default) is treated as a write operation and must clear DSH's human
+ * approval before each call is forwarded.
  */
-export const PROTOCOL_VERSION = 4
+export const PROTOCOL_VERSION = 5
 
 /** Server identity advertised in the `welcome` message. */
 export const SERVER_ID = 'frontend-tools-bridge'
@@ -154,6 +158,13 @@ export interface RemoteToolSpec {
   readonly parametersSchema: WireJsonSchema
   /** Optional raw JSON Schema for the tool's successful output values; `{}` (any JSON) when omitted. */
   readonly outputSchema?: WireJsonSchema
+  /**
+   * Whether this tool only reads state and never mutates it. `true` tools run
+   * without interruption; omitted or `false` marks a WRITE operation — the
+   * bridge asks for DSH human approval before every forwarded call. Default
+   * is write (fail-safe): an undeclared tool is treated as mutating.
+   */
+  readonly readOnly?: boolean
 }
 
 /** First message on every connection; unknown key or wrong version closes it. */
@@ -255,18 +266,21 @@ function expectSchema(value: unknown, where: string): WireJsonSchema {
 /** Validate one `RemoteToolSpec` field by field; throws `invalid_tool` on the first violation. */
 function expectRemoteTool(value: unknown): RemoteToolSpec {
   if (!isRecord(value)) throw new FrontendToolsError('invalid_tool', 'each registered tool must be an object')
-  const { name, description, parametersSchema, outputSchema } = value
+  const { name, description, parametersSchema, outputSchema, readOnly } = value
   if (typeof name !== 'string' || !TOOL_NAME_PATTERN.test(name)) {
     throw new FrontendToolsError('invalid_tool', `tool name ${JSON.stringify(name)} must match ${TOOL_NAME_PATTERN.source}`)
   }
   if (typeof description !== 'string') {
     throw new FrontendToolsError('invalid_tool', `tool "${name}" description must be a string`)
   }
-  const parameters = expectSchema(parametersSchema, `tool "${name}" parametersSchema`)
-  if (outputSchema !== undefined) {
-    return { name, description, parametersSchema: parameters, outputSchema: expectSchema(outputSchema, `tool "${name}" outputSchema`) }
+  if (readOnly !== undefined && typeof readOnly !== 'boolean') {
+    throw new FrontendToolsError('invalid_tool', `tool "${name}" readOnly must be a boolean when present`)
   }
-  return { name, description, parametersSchema: parameters }
+  const parameters = expectSchema(parametersSchema, `tool "${name}" parametersSchema`)
+  const spec: RemoteToolSpec = outputSchema !== undefined
+    ? { name, description, parametersSchema: parameters, outputSchema: expectSchema(outputSchema, `tool "${name}" outputSchema`) }
+    : { name, description, parametersSchema: parameters }
+  return readOnly === undefined ? spec : { ...spec, readOnly }
 }
 
 /**

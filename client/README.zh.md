@@ -10,6 +10,8 @@
 
 `createFrontendToolsClient({ url, key })` 返回一个客户端，持有一条连接和一个工具注册表。凭证归应用自己掌管：用 `generateClientKey()` 生成一次 DSH KEY 并持久化（例如存入 `localStorage`），展示给用户——`buildClientKeyClipboardText({ namespace, key, appName })` 生成推荐的复制文本——由用户在对话中经 `frontend_tools_register_client` 管理工具把它登记到应用的命名空间。KEY 就是客户端的全部身份：握手只呈交 KEY，服务端在 `welcome` 中回显绑定的命名空间——`connect()` 落定后可从 `client.namespace` 读取。`registerTools(tools)` 发送一个 `register` 批次，并按注册顺序以桥注册出的模型侧公开名（`<namespace>__<name>`）落定；`unregisterTools(names)` 按原始名移除工具，并以桥实际移除的原始名落定（未知名被忽略）。传入的 `call` 帧按原始名称分发到对应工具的 `execute`；落定结果——值，或结构化的 `{ code, message }` 失败——作为一条 `callResult` 回传。服务端的 `ping` 存活探测由 SDK 自动以 `pong` 应答。
 
+每个工具都带一个可选的 `readOnly` 标志。`readOnly: true` 声明该工具只读取状态、从不修改——调用不设限。省略该标志（或 `false`）即标记为写操作：桥在转发每次调用之前，会把决定权交给 DSH 的人工审核渠道（`tools/pre-execute` → `ask`）；只有 `allowed-once` 的批准才放行调用，拒绝、取消或缺少审核通道都会以拒绝收场。默认即为写（安全兜底）：未声明的工具按会修改状态对待。
+
 抛出的 `FrontendToolsError` 保留其 code 与 message（模型应当读到的权限拒绝用 `code: 'denied'`，例如"未登录"）；其他抛出的错误以 `internal` 连同错误文本呈现。未知工具名应答 `unknown_tool`。
 
 ## 运行时要求
@@ -32,6 +34,7 @@ const names = await client.registerTools([{
   name: 'echo',
   description: 'Echo the provided message back.',
   parametersSchema: { type: 'object', properties: { message: { type: 'string' } }, required: ['message'] },
+  readOnly: true, // reads only — runs without approval; omit for WRITE tools
   async execute(args: unknown) { return { echoed: (args as { message?: unknown }).message } },
 }])
 ```

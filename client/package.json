@@ -1,6 +1,6 @@
 {
   "name": "dsh-frontend-tools-client",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Frontend tools client SDK: register an application's tools with the DeepSeek Harness frontend-tools bridge over WebSocket (browser, Electron, Tauri, Node)",
   "license": "MIT",
   "author": "lukaiwuyi",

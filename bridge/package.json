@@ -1,6 +1,6 @@
 {
   "name": "dsh-frontend-tools-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "DSH plugin: loopback WebSocket bridge that mirrors application frontend tools onto the agent's tool registry and forwards model calls back to the application — one bridge, many apps, key-based namespace isolation",
   "license": "MIT",
   "author": "lukaiwuyi",

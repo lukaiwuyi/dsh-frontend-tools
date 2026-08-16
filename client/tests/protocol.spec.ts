@@ -89,6 +89,14 @@ describe('parseClientMessage · session phase', () => {
     })
   })
 
+  it('carries an optional readOnly flag through and drops it when absent', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'register', tools: [{ ...ECHO, readOnly: true }] }), 'session'))
+      .toEqual({ type: 'register', tools: [{ ...ECHO, readOnly: true }] })
+    // Absent stays absent (the bridge's safe default treats it as write).
+    expect(parseClientMessage(JSON.stringify({ type: 'register', tools: [ECHO] }), 'session'))
+      .toEqual({ type: 'register', tools: [ECHO] })
+  })
+
   it('rejects a register without a non-empty tools array', () => {
     expect(rejectsWith(JSON.stringify({ type: 'register', tools: [] }), 'session', 'invalid_message')).toContain('non-empty array')
     rejectsWith(JSON.stringify({ type: 'register', tools: 'echo' }), 'session', 'invalid_message')
@@ -99,6 +107,7 @@ describe('parseClientMessage · session phase', () => {
     expect(rejectsWith(JSON.stringify({ type: 'register', tools: [{ ...ECHO, name: 'has space' }] }), 'session', 'invalid_tool')).toContain('must match')
     expect(rejectsWith(JSON.stringify({ type: 'register', tools: [{ ...ECHO, name: '' }] }), 'session', 'invalid_tool')).toContain('must match')
     expect(rejectsWith(JSON.stringify({ type: 'register', tools: [{ ...ECHO, description: 42 }] }), 'session', 'invalid_tool')).toContain('description must be a string')
+    expect(rejectsWith(JSON.stringify({ type: 'register', tools: [{ ...ECHO, readOnly: 'yes' }] }), 'session', 'invalid_tool')).toContain('readOnly must be a boolean')
     expect(rejectsWith(JSON.stringify({ type: 'register', tools: [{ ...ECHO, parametersSchema: 42 }] }), 'session', 'invalid_message')).toContain('must be a JSON object')
     expect(rejectsWith(JSON.stringify({ type: 'register', tools: [{ ...ECHO, outputSchema: [] }] }), 'session', 'invalid_message')).toContain('must be a JSON object')
   })

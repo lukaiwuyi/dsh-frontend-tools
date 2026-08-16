@@ -79,10 +79,15 @@ await client.registerTools([{
   name: 'get_current_page',
   description: 'Get information about the current page the user is viewing.',
   parametersSchema: { type: 'object', properties: {} },
+  readOnly: true, // read-only tools run without interruption
   async execute() {
     return { url: location.href, title: document.title }
   },
 }])
+
+// Tools WITHOUT `readOnly: true` are WRITE operations: every call clears
+// DSH's human approval before it is forwarded to your app (fail-safe
+// default — undeclared means write).
 ```
 
 ### 4. 在 DSH 中登记 KEY
@@ -100,7 +105,7 @@ await client.registerTools([{
 pnpm install
 pnpm run build       # build both packages
 pnpm run typecheck   # type-check all sources
-pnpm run test        # run 166 unit tests
+pnpm run test        # run 175 unit tests
 ```
 
 ## License

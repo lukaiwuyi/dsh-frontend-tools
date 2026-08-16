@@ -16,6 +16,30 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 import { CLIENT_KEY_PATTERN, NAMESPACE_PATTERN } from 'dsh-frontend-tools-client'
 import type { ClientRoster } from './key-store.ts'
+import type { ToolCategory } from './registry.ts'
+
+/**
+ * Read/write categories of the admin tools themselves (the static half of the
+ * write-approval gate's lookup). `list` only reads bridge state; `register`
+ * and `revoke` mutate the credential roster, so they clear human approval —
+ * `register` deliberately so, because a model could otherwise swap the
+ * user-pasted KEY for another one and quietly hand the namespace to a
+ * different application.
+ */
+const ADMIN_TOOL_CATEGORIES: Readonly<Record<string, ToolCategory>> = {
+  frontend_tools_register_client: { readOnly: false, label: 'frontend_tools.register_client' },
+  frontend_tools_list_clients: { readOnly: true, label: 'frontend_tools.list_clients' },
+  frontend_tools_revoke_client: { readOnly: false, label: 'frontend_tools.revoke_client' },
+}
+
+/**
+ * Resolve the read/write category of one admin tool name.
+ * @param toolName - the `ctx.tools` name of an admin tool.
+ * @returns the recorded category, or `undefined` when the name is not an admin tool.
+ */
+export function adminToolCategory(toolName: string): ToolCategory | undefined {
+  return ADMIN_TOOL_CATEGORIES[toolName]
+}
 
 /** Collaborators the admin tools drive. */
 export interface AdminDeps {

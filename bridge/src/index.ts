@@ -21,18 +21,21 @@ import type {} from '@deepseek-ai/dsh-tools'
 import { BridgeServer } from './server.ts'
 import { ClientRoster } from './key-store.ts'
 import type { StaticClient } from './key-store.ts'
-import { registerAdminTools } from './admin.ts'
+import { registerAdminTools, adminToolCategory } from './admin.ts'
+import { registerWriteApprovalGate } from './approval.ts'
 
 export { publicToolName, buildMirroredTool, MirrorRegistry } from './registry.ts'
-export type { CallForwarder } from './registry.ts'
+export type { CallForwarder, ToolCategory } from './registry.ts'
 export { CallDispatcher } from './dispatch.ts'
 export type { FrameSender } from './dispatch.ts'
 export { BridgeServer } from './server.ts'
 export type { ServerOptions } from './server.ts'
 export { ClientRoster } from './key-store.ts'
 export type { StaticClient } from './key-store.ts'
-export { registerAdminTools } from './admin.ts'
+export { registerAdminTools, adminToolCategory } from './admin.ts'
 export type { AdminDeps } from './admin.ts'
+export { registerWriteApprovalGate } from './approval.ts'
+export type { ToolCategoryLookup } from './approval.ts'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'frontend-tools-bridge'
@@ -114,7 +117,11 @@ export async function apply(ctx: Context, config: Config): Promise<void> {
     sessionInfo: namespace => server.sessionInfo(namespace),
     dropSession: namespace => server.dropSession(namespace),
   })
+  // 写操作审核门：动态查活跃会话的镜像工具，静态查本插件 admin 工具；
+  // 只读与非本插件工具放行，写工具交由 DSH 人工审核（allowed-once 才转发）。
+  const disposeGate = registerWriteApprovalGate(ctx, publicName => server.categoryOf(publicName) ?? adminToolCategory(publicName))
   ctx.effect(() => () => {
+    disposeGate()
     disposeAdmin()
     server.dispose()
   }, 'frontend-tools-bridge.server')

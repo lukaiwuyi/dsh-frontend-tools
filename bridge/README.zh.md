@@ -14,6 +14,12 @@
 
 模型调用以 `call` 帧转发给持有会话的连接，帧携带客户端的原始工具名（公开名绝不回传）；promise 在收到匹配的 `callResult` 时落定，在调用方通过 `exec.signal` 中止时拒绝，连接断开或 `callTimeoutMs` 期限内无应答时同样拒绝。被放弃或已超时调用的迟到 `callResult` 会被丢弃，不影响会话。结果渲染为格式化 JSON 文本；客户端未声明输出 schema 时默认为任意 JSON。
 
+## 写操作人工审核
+
+工具的读写分类来自应用自己的声明：以 `readOnly: true` 注册的工具只读；其余工具（安全默认）一律是写操作。桥安装一个覆盖镜像工具与自身管理工具的 `tools/pre-execute` 监听器：只读工具与其他插件拥有的工具原样放行，而每次写调用返回 `{ kind: 'ask' }`——DSH 官方的人工审核渠道。只有 `allowed-once` 的批准才把调用转发给应用；用户拒绝、取消、或部署环境未挂载审核通道（例如无头运行）都会自动拒绝——这是管线的 fail-closed 契约，同时在会话日志上产生成对的 `approval/asked` / `approval/decided` 审计事件。用户看到的审批卡片携带理由 `前端工具写操作 "<namespace>.<rawName>"` 与已流式呈现的调用参数；批准是一次性的，每次写调用都会再次询问。
+
+管理工具按同样规则分类：`frontend_tools_list_clients` 只读；`frontend_tools_register_client` 与 `frontend_tools_revoke_client` 为写——`register` 有意如此，否则模型可能把用户粘贴的 KEY 换成另一把，悄悄把命名空间交给另一个应用。
+
 存活探测每 15 秒发送一个 `ping` 帧；下一个探测到期时仍未应答的探测会终止会话（`close` 路径负责完整的清理链：注销工具、拒绝在途调用、接受替代连接）。
 
 ## 管理工具
@@ -40,7 +46,7 @@
 
 ## 协议
 
-版本 4，仅文本帧，JSON 编码。客户端 → 服务端：`hello`、`register`、`unregister`、`callResult`、`pong`。服务端 → 客户端：`welcome`、`registered`、`unregistered`、`call`、`ping`、`error`。`hello` 帧只携带 KEY——命名空间来自名单绑定，并在 `welcome` 中回显。畸形帧与阶段违规（例如握手前发送 `register`）以 `invalid_message` 应答并关闭连接。权威的消息与错误码定义位于 [`dsh-frontend-tools-client`](../client/README.md)（其 `src/protocol.ts`）；本包作为依赖消费它们，两侧不可能漂移。
+版本 5，仅文本帧，JSON 编码。客户端 → 服务端：`hello`、`register`、`unregister`、`callResult`、`pong`。服务端 → 客户端：`welcome`、`registered`、`unregistered`、`call`、`ping`、`error`。`hello` 帧只携带 KEY——命名空间来自名单绑定，并在 `welcome` 中回显。v5 为每个注册工具规格新增可选的 `readOnly` 标志（即上文写操作审核的分类依据）；v4 及更旧的对端在握手时被拒绝。畸形帧与阶段违规（例如握手前发送 `register`）以 `invalid_message` 应答并关闭连接。权威的消息与错误码定义位于 [`dsh-frontend-tools-client`](../client/README.md)（其 `src/protocol.ts`）；本包作为依赖消费它们，两侧不可能漂移。
 
 ## 导出形状
 

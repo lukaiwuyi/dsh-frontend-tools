@@ -40,6 +40,8 @@ export function toRemoteSpec(tool: FrontendTool): RemoteToolSpec {
     description: tool.description,
     parametersSchema: tool.parametersSchema,
     ...(tool.outputSchema !== undefined ? { outputSchema: tool.outputSchema } : {}),
+    // readOnly 只在显式声明时携带：未声明的工具在桥接侧按写操作处理（安全默认）。
+    ...(tool.readOnly !== undefined ? { readOnly: tool.readOnly } : {}),
   }
 }
 

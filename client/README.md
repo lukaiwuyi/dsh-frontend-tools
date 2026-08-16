@@ -10,6 +10,8 @@ The application half of the frontend tools bridge: connect an application (brows
 
 `createFrontendToolsClient({ url, key })` returns one client owning one connection and one tool registry. The application owns its credential: generate a DSH KEY once with `generateClientKey()`, persist it (for example in `localStorage`), show it to the user — `buildClientKeyClipboardText({ namespace, key, appName })` renders the recommended copy block — and have them register it against the application's namespace through the `frontend_tools_register_client` admin tool. The key is the client's whole identity: the handshake presents only the key and the server's `welcome` echoes the bound namespace back — read it from `client.namespace` after `connect()` resolves. `registerTools(tools)` sends one `register` batch and resolves with the model-facing public names (`<namespace>__<name>`) the bridge registered, in registration order; `unregisterTools(names)` removes tools by raw name and resolves with the raw names the bridge actually removed (unknown names are ignored). Incoming `call` frames dispatch by raw name to the matching tool's `execute`; the settled outcome — value, or a structured `{ code, message }` failure — travels back as one `callResult`. Server `ping` liveness probes are answered with `pong` automatically.
 
+Every tool carries an optional `readOnly` flag. `readOnly: true` declares a tool that only reads state and never mutates it — its calls run without interruption. Omitting the flag (or `false`) marks a WRITE operation: before the bridge forwards each call, it routes the decision through DSH's human-approval channel (`tools/pre-execute` → `ask`); only an `allowed-once` grant lets the call through, while a rejection, a cancellation, or a missing approval channel denies it. The default is deliberately write (fail-safe): an undeclared tool is treated as mutating.
+
 A thrown `FrontendToolsError` keeps its code and message (use `code: 'denied'` for permission refusals the model should read, for example "not logged in"); any other thrown error surfaces as `internal` with the error text. Unknown tool names answer `unknown_tool`.
 
 ## Runtime requirements
@@ -32,6 +34,7 @@ const names = await client.registerTools([{
   name: 'echo',
   description: 'Echo the provided message back.',
   parametersSchema: { type: 'object', properties: { message: { type: 'string' } }, required: ['message'] },
+  readOnly: true, // reads only — runs without approval; omit for WRITE tools
   async execute(args: unknown) { return { echoed: (args as { message?: unknown }).message } },
 }])
 ```

@@ -14,6 +14,12 @@ Registration is per-`register`-batch and all-or-nothing: if any tool in a batch 
 
 A model invocation is forwarded to the owning connection as a `call` frame carrying the client's raw tool name (the public name never travels back); the promise settles when the matching `callResult` arrives, when the caller aborts through `exec.signal`, or — rejection — when the connection drops or `callTimeoutMs` elapses without an answer. A late `callResult` for an abandoned or timed-out call is dropped without failing the session. Results render as pretty-printed JSON text content; the output schema defaults to any JSON when the client does not declare one.
 
+## Write approval
+
+Tools are read/write classified by the application's own declaration: a tool registered with `readOnly: true` only reads state; every other tool (the fail-safe default) is a WRITE operation. The bridge installs one `tools/pre-execute` listener covering its mirrored tools plus its own admin tools: read-only tools and tools owned by other plugins pass through untouched, while each write call returns `{ kind: 'ask' }` — DSH's official human-approval channel. Only an `allowed-once` grant forwards the call to the application; a rejection, a cancellation, or a deployment with no approval channel mounted (for example a headless run) denies the call automatically — the pipeline's fail-closed contract, which also produces the paired `approval/asked` / `approval/decided` audit events on the session log. The approval card the user sees carries the reason `前端工具写操作 "<namespace>.<rawName>"` plus the already-streamed call arguments; the grant is one-shot, so every write call asks again.
+
+The admin tools are classified the same way: `frontend_tools_list_clients` reads; `frontend_tools_register_client` and `frontend_tools_revoke_client` write — `register` deliberately, because a model could otherwise swap the user-pasted KEY for another one and quietly hand the namespace to a different application.
+
 Liveness is probed every 15 seconds with a `ping` frame; a probe still unanswered when the next one is due terminates the session (the `close` path owns the cleanup chain: tools unregistered, in-flight calls rejected, replacement connections accepted).
 
 ## Admin tools
@@ -40,7 +46,7 @@ An empty roster at load is valid: register the application-generated DSH KEY onc
 
 ## Protocol
 
-Version 4, text frames only, JSON-encoded. Client → server: `hello`, `register`, `unregister`, `callResult`, `pong`. Server → client: `welcome`, `registered`, `unregistered`, `call`, `ping`, `error`. The `hello` frame carries the key only — the namespace comes from the roster binding and is echoed in `welcome`. Malformed frames and phase violations (for example `register` before the handshake) answer `invalid_message` and close the socket. The authoritative message and error-code definitions live in [`dsh-frontend-tools-client`](../client/README.md) (`src/protocol.ts` there); this package consumes them as a dependency, so the two sides cannot drift.
+Version 5, text frames only, JSON-encoded. Client → server: `hello`, `register`, `unregister`, `callResult`, `pong`. Server → client: `welcome`, `registered`, `unregistered`, `call`, `ping`, `error`. The `hello` frame carries the key only — the namespace comes from the roster binding and is echoed in `welcome`. v5 adds the optional `readOnly` flag to each registered tool spec (the write-approval classification above); v4 and older peers are rejected at the handshake. Malformed frames and phase violations (for example `register` before the handshake) answer `invalid_message` and close the socket. The authoritative message and error-code definitions live in [`dsh-frontend-tools-client`](../client/README.md) (`src/protocol.ts` there); this package consumes them as a dependency, so the two sides cannot drift.
 
 ## Export shape
 

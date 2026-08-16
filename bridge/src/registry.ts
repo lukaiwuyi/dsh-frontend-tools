@@ -86,6 +86,14 @@ export function buildMirroredTool(spec: RemoteToolSpec, namespace: string, forwa
   }
 }
 
+/** Read/write classification of one mirrored tool, kept for the approval gate. */
+export interface ToolCategory {
+  /** Whether the application declared the tool read-only (`readOnly: true`); write otherwise. */
+  readonly readOnly: boolean
+  /** Human-facing identity (`<namespace>.<rawName>`) quoted in approval reasons. */
+  readonly label: string
+}
+
 /**
  * Per-connection set of mirrored registrations. Registering and disposing are
  * all-or-nothing per `register` batch: a conflict rolls the whole batch back,
@@ -93,6 +101,8 @@ export function buildMirroredTool(spec: RemoteToolSpec, namespace: string, forwa
  */
 export class MirrorRegistry {
   private readonly disposers = new Map<string, () => void>()
+  /** Read/write category per public name, kept in lockstep with {@link disposers}. */
+  private readonly categories = new Map<string, ToolCategory>()
 
   constructor(private readonly ctx: Context) {}
 
@@ -108,12 +118,15 @@ export class MirrorRegistry {
    */
   register(specs: readonly RemoteToolSpec[], namespace: string, forward: CallForwarder): string[] {
     const batch = new Map<string, ToolDefinition>()
+    const batchCategories = new Map<string, ToolCategory>()
     for (const spec of specs) {
       const publicName = publicToolName(namespace, spec.name)
       if (batch.has(publicName) || this.disposers.has(publicName)) {
         throw new FrontendToolsError('invalid_tool', `tool "${spec.name}" resolves to public name "${publicName}" that is already registered by this connection`)
       }
       batch.set(publicName, buildMirroredTool(spec, namespace, forward))
+      // 安全默认：未声明 readOnly 的工具按写操作分类（须过人工审核）。
+      batchCategories.set(publicName, { readOnly: spec.readOnly === true, label: `${namespace}.${spec.name}` })
     }
     const added: Array<readonly [string, () => void]> = []
     try {
@@ -130,6 +143,7 @@ export class MirrorRegistry {
       throw new FrontendToolsError('invalid_tool', `registering mirrored tools failed: ${reason}`)
     }
     for (const [publicName, dispose] of added) this.disposers.set(publicName, dispose)
+    for (const [publicName, category] of batchCategories) this.categories.set(publicName, category)
     return [...batch.keys()]
   }
 
@@ -147,6 +161,7 @@ export class MirrorRegistry {
       if (dispose === undefined) continue
       dispose()
       this.disposers.delete(publicName)
+      this.categories.delete(publicName)
       removed.push(publicName)
     }
     return removed
@@ -156,10 +171,20 @@ export class MirrorRegistry {
   disposeAll(): void {
     for (const dispose of this.disposers.values()) dispose()
     this.disposers.clear()
+    this.categories.clear()
   }
 
   /** Number of tools currently mirrored by this connection. */
   get size(): number {
     return this.disposers.size
+  }
+
+  /**
+   * Read/write category of one mirrored tool.
+   * @param publicName - the model-facing `ctx.tools` name.
+   * @returns the recorded category, or `undefined` when this connection does not own the name.
+   */
+  categoryOf(publicName: string): ToolCategory | undefined {
+    return this.categories.get(publicName)
   }
 }

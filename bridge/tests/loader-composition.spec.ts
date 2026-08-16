@@ -4,8 +4,12 @@
 // and the configured port/key carry a genuine client SDK connection end to
 // end — the client registers an `echo` tool, the model-facing registry sees
 // it under the public name, and a forwarded call returns the application's
-// result. The client here uses the platform `WebSocket` (no constructor
-// injection), so the default-transport path of the SDK is exercised too.
+// result. The composition also mounts the real approval seam with an
+// auto-granting answerer and runs every call inside an open turn, so WRITE
+// tools (the undeclared default, including the admin register/revoke pair)
+// demonstrably clear DSH's human-approval channel on the way. The client here
+// uses the platform `WebSocket` (no constructor injection), so the
+// default-transport path of the SDK is exercised too.
 import { createServer } from 'node:net'
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -16,8 +20,14 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import { CallId } from '@deepseek-ai/dsh-llm'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
+import SessionStore from '@deepseek-ai/dsh-session'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
+// Side-effect type import: declaration-merges `approval/*` events for typing.
+import type {} from '@deepseek-ai/dsh-user-approval'
+import UserApproval from '@deepseek-ai/dsh-user-approval'
+import type { ApprovalRequest } from '@deepseek-ai/dsh-user-approval'
 import * as Bridge from '../src/index.ts'
 import { createFrontendToolsClient, generateClientKey } from 'dsh-frontend-tools-client'
 import type { FrontendTool } from 'dsh-frontend-tools-client'
@@ -63,7 +73,9 @@ async function boot(configLines: (stateDir: string) => readonly string[]): Promi
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     "- name: '@deepseek-ai/dsh-system-prompt'",
+    "- name: '@deepseek-ai/dsh-session'",
     "- name: '@deepseek-ai/dsh-tools'",
+    "- name: '@deepseek-ai/dsh-user-approval'",
     "- name: 'dsh-frontend-tools-bridge'",
     ...lines.length > 0 ? ['  config:', ...lines] : [],
     '',
@@ -76,7 +88,9 @@ async function boot(configLines: (stateDir: string) => readonly string[]): Promi
   ctx.loader.builtins.include = Include
   const modules = new Map<string, unknown>([
     ['@deepseek-ai/dsh-system-prompt', SystemPrompt],
+    ['@deepseek-ai/dsh-session', SessionStore],
     ['@deepseek-ai/dsh-tools', ToolRuntime],
+    ['@deepseek-ai/dsh-user-approval', UserApproval],
     ['dsh-frontend-tools-bridge', Bridge],
   ])
   ctx.loader.internal = {
@@ -89,6 +103,21 @@ async function boot(configLines: (stateDir: string) => readonly string[]): Promi
   await ctx.loader.create({ name: 'cordis:include', config: { path: pathToFileURL(configPath).href } })
   await ctx.loader.await()
   return ctx
+}
+
+/** One agent-shaped object whose session sits inside an open turn. */
+function openTurnAgent(ctx: Context): Agent {
+  const session = ctx.sessions.create()
+  session.append('turn/start', { turn: 1 })
+  return { session } as unknown as Agent
+}
+
+/** An answerer granting every request while recording what it saw. */
+function grantAll(ctx: Context, log: ApprovalRequest[]): void {
+  ctx.on('approval/request', (req) => {
+    log.push(req)
+    return Promise.resolve('allowed-once')
+  })
 }
 
 const ECHO: FrontendTool = {
@@ -130,6 +159,9 @@ describe('frontend-tools-bridge · loader composition', () => {
       '      - namespace: demo',
       "        key: 'composition-key'",
     ])
+    const agent = openTurnAgent(ctx)
+    const asked: ApprovalRequest[] = []
+    grantAll(ctx, asked)
 
     const client = createFrontendToolsClient({
       url: `ws://127.0.0.1:${port}`,
@@ -144,35 +176,44 @@ describe('frontend-tools-bridge · loader composition', () => {
     await expect(client.registerTools([ECHO])).resolves.toEqual(['demo__echo'])
     expect(ctx.tools.schemas().map(s => s.name)).toContain('demo__echo')
 
+    // `echo` is undeclared → WRITE by default: the call clears the real
+    // approval channel (asked with the public tool name) before it forwards.
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('composition-call-1'),
       name: 'demo__echo',
       arguments: { message: 'hi' },
+      agent,
     })
     expect(result.isError).toBe(false)
     if (result.isError) throw new Error('expected composition success')
     expect(result.value).toEqual({ echoed: 'hi' })
+    expect(asked.map(req => req.toolName)).toEqual(['demo__echo'])
 
     // The admin tools drive the real apply() closures: the bound port in
     // register output, live session facts from the server, and a revoke of
     // the just-registered credential (the static `demo` namespace refuses
-    // revoke).
+    // revoke). register/revoke are WRITE tools and pass through the same
+    // approval channel; list is read-only and asks nobody.
+    const askedBeforeRegister = asked.length
     const registered = await ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('composition-register-1'),
       name: 'frontend_tools_register_client',
       arguments: { namespace: 'extra', key: generateClientKey() },
+      agent,
     })
     expect(registered.isError).toBe(false)
     if (registered.isError) throw new Error('expected register success')
     expect((registered.value as { url: string }).url).toBe(`ws://127.0.0.1:${port}`)
+    expect(asked.slice(askedBeforeRegister).map(req => req.toolName)).toEqual(['frontend_tools_register_client'])
 
     const listed = await ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('composition-list-1'),
       name: 'frontend_tools_list_clients',
       arguments: {},
+      agent,
     })
     expect(listed.isError).toBe(false)
     if (listed.isError) throw new Error('expected list success')
@@ -180,16 +221,19 @@ describe('frontend-tools-bridge · loader composition', () => {
       { namespace: 'demo', connected: true, toolCount: 1 },
       { namespace: 'extra', connected: false, toolCount: 0 },
     ] })
+    expect(asked.filter(req => req.toolName === 'frontend_tools_list_clients')).toEqual([])
 
     const revoked = await ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('composition-revoke-1'),
       name: 'frontend_tools_revoke_client',
       arguments: { namespace: 'extra' },
+      agent,
     })
     expect(revoked.isError).toBe(false)
     if (revoked.isError) throw new Error('expected revoke success')
     expect(revoked.value).toEqual({ namespace: 'extra', revoked: true, connectionDropped: false })
+    expect(asked.filter(req => req.toolName === 'frontend_tools_revoke_client')).toHaveLength(1)
 
     client.disconnect()
     await tick()
@@ -206,11 +250,14 @@ describe('frontend-tools-bridge · loader composition', () => {
       const ctx = await boot(() => [
         `    port: ${port}`,
       ])
+      const agent = openTurnAgent(ctx)
+      grantAll(ctx, [])
       const registered = await ctx.tools.execute({
         signal: new AbortController().signal,
         callId: CallId('composition-register-home-1'),
         name: 'frontend_tools_register_client',
         arguments: { namespace: 'extra', key: generateClientKey() },
+        agent,
       })
       expect(registered.isError).toBe(false)
       if (registered.isError) throw new Error('expected register success')

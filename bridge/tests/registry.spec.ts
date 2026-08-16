@@ -168,4 +168,21 @@ describe('MirrorRegistry', () => {
 
     expect(registry.register([ECHO], 'eatc', recordingForwarder([]))).toEqual(['eatc__echo'])
   })
+
+  it('records the read/write category per registration and clears it on removal', async () => {
+    const ctx = await setup()
+    const registry = new MirrorRegistry(ctx)
+    // An undeclared tool is WRITE (fail-safe default); `readOnly: true` reads.
+    registry.register([ECHO, { ...ECHO, name: 'peek', readOnly: true }], 'eatc', recordingForwarder([]))
+
+    expect(registry.categoryOf('eatc__echo')).toEqual({ readOnly: false, label: 'eatc.echo' })
+    expect(registry.categoryOf('eatc__peek')).toEqual({ readOnly: true, label: 'eatc.peek' })
+    expect(registry.categoryOf('eatc__never-registered')).toBeUndefined()
+
+    registry.unregister(['eatc__peek'])
+    expect(registry.categoryOf('eatc__peek')).toBeUndefined()
+
+    registry.disposeAll()
+    expect(registry.categoryOf('eatc__echo')).toBeUndefined()
+  })
 })
